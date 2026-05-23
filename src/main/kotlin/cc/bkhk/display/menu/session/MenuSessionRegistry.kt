@@ -449,20 +449,24 @@ object MenuSessionRegistry {
         return session.snapshot()
     }
 
-    fun close(player: Player): Boolean {
-        return close(player.uniqueId)
+    fun close(player: Player, preserveState: Boolean = true): Boolean {
+        return close(player.uniqueId, preserveState)
     }
 
-    fun close(playerId: UUID): Boolean {
+    fun close(playerId: UUID, preserveState: Boolean = true): Boolean {
         val removed = sessions.remove(playerId) ?: return false
-        retainState(removed.snapshot())
+        if (preserveState) {
+            retainState(removed.snapshot())
+        }
         removed.shut()
         return true
     }
 
-    fun closeAll(): Int {
+    fun closeAll(preserveState: Boolean = true): Int {
         val activeSnapshots = all()
-        activeSnapshots.forEach { retainState(it) }
+        if (preserveState) {
+            activeSnapshots.forEach { retainState(it) }
+        }
         sessions.values.forEach { it.shut() }
         sessions.clear()
         return activeSnapshots.size

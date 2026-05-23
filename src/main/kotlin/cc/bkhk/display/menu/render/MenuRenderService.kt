@@ -32,9 +32,10 @@ object MenuRenderService {
     }
 
     fun shutdown() {
-        closeAll()
-        MenuDisplayEntityTracker.destroyAllOnline("shutdown_fallback")
         started.set(false)
+        closeAll(preserveState = false)
+        MenuSessionRegistry.clearRetainedStates()
+        MenuDisplayEntityTracker.destroyAllOnline("shutdown_fallback")
     }
 
     fun restartTasks() {
@@ -144,7 +145,7 @@ object MenuRenderService {
         return spawned
     }
 
-    fun close(player: Player): Boolean {
+    fun close(player: Player, preserveState: Boolean = true): Boolean {
         val session = MenuSessionRegistry.session(player) ?: return false
         val snapshot = session.snapshot() ?: return false
         session.cancelTasks()
@@ -153,22 +154,22 @@ object MenuRenderService {
         MenuRenderListener.clearViewThrottle(player.uniqueId)
         destroyHandles(player, snapshot.entityHandles.values, immediate = true, session = null)
         MenuDisplayEntityTracker.destroyAll(player, "close_fallback")
-        MenuSessionRegistry.close(player)
+        MenuSessionRegistry.close(player, preserveState)
         logPacket("close player=${player.name} menu=${snapshot.menuId} page=${snapshot.pageId} handles=${snapshot.entityHandles.size}")
         return true
     }
 
-    fun close(playerId: UUID): Boolean {
+    fun close(playerId: UUID, preserveState: Boolean = true): Boolean {
         val player = Bukkit.getPlayer(playerId)
         if (player != null) {
-            return close(player)
+            return close(player, preserveState)
         }
-        return forgetDetachedSession(playerId)
+        return forgetDetachedSession(playerId, preserveState)
     }
 
-    fun closeAll(): Int {
+    fun closeAll(preserveState: Boolean = true): Int {
         val sessions = MenuSessionRegistry.all()
-        sessions.forEach { snapshot -> close(snapshot.playerId) }
+        sessions.forEach { snapshot -> close(snapshot.playerId, preserveState) }
         return sessions.size
     }
 
@@ -324,9 +325,9 @@ object MenuRenderService {
         MenuSessionRegistry.close(player)
     }
 
-    private fun forgetDetachedSession(playerId: UUID): Boolean {
+    private fun forgetDetachedSession(playerId: UUID, preserveState: Boolean = true): Boolean {
         MenuDisplayEntityTracker.forgetAll(playerId)
-        return MenuSessionRegistry.close(playerId)
+        return MenuSessionRegistry.close(playerId, preserveState)
     }
 
     private fun <T> runNms(operation: String, player: Player, block: () -> T): T? {
