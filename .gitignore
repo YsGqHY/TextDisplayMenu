@@ -1,0 +1,10 @@
+.gradle
+.gradle-tmp
+.idea
+build
+.claude
+
+AGENTS.md
+CLAUDE.md
+
+docs
