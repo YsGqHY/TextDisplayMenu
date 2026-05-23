@@ -1,5 +1,12 @@
 package cc.bkhk.display.menu.menu.model
 
+import cc.bkhk.display.menu.nms.DisplayEntityType
+import cc.bkhk.display.menu.nms.DisplayItemTransform
+import org.bukkit.Material
+import org.bukkit.block.data.BlockData
+import org.bukkit.boss.BarColor
+import org.bukkit.boss.BarStyle
+
 data class MenuDefinition(
     val id: String,
     val displayName: String,
@@ -56,6 +63,32 @@ data class MenuElementDefinition(
     val interactive: Boolean? = null,
     val scale: MenuScale? = null,
     val actions: MenuElementActions = MenuElementActions(),
+    val prepared: PreparedMenuElement = PreparedMenuElement(),
+)
+
+/**
+ * 菜单元素的静态预处理结果，在菜单配置加载时构建，避免打开菜单时重复解析。
+ */
+data class PreparedMenuElement(
+    val displayType: DisplayEntityType = DisplayEntityType.TEXT,
+    val material: Material? = null,
+    val itemTransform: DisplayItemTransform? = null,
+    val blockData: BlockData? = null,
+    val hover: PreparedMenuHover = PreparedMenuHover(),
+    val actions: PreparedMenuActions = PreparedMenuActions(),
+)
+
+data class PreparedMenuHover(
+    val bossbarColor: BarColor = BarColor.WHITE,
+    val bossbarStyle: BarStyle = BarStyle.SOLID,
+)
+
+data class PreparedMenuActions(
+    val interactClick: List<String> = emptyList(),
+    val leftClick: List<String> = emptyList(),
+    val rightClick: List<String> = emptyList(),
+    val shiftLeftClick: List<String> = emptyList(),
+    val shiftRightClick: List<String> = emptyList(),
 )
 
 enum class MenuElementType {

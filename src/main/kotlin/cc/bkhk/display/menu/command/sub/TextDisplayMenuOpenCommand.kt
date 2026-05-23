@@ -6,13 +6,15 @@ import cc.bkhk.display.menu.command.sub.TextDisplayMenuCommandSupport.page
 import cc.bkhk.display.menu.command.sub.TextDisplayMenuCommandSupport.parseArguments
 import cc.bkhk.display.menu.menu.config.MenuRegistry
 import cc.bkhk.display.menu.render.MenuRenderService
+import cc.bkhk.display.menu.text.MenuTextContext
+import cc.bkhk.display.menu.text.MenuTextProcessor
+import cc.bkhk.display.menu.text.MenuTextUse
 import org.bukkit.command.CommandSender
 import org.bukkit.entity.Player
 import taboolib.common.platform.command.player
 import taboolib.common.platform.command.subCommand
 import taboolib.common.platform.command.suggest
 import taboolib.common.platform.command.suggestUncheck
-import taboolib.module.chat.colored
 import taboolib.platform.util.sendLang
 
 object TextDisplayMenuOpenCommand {
@@ -64,7 +66,7 @@ object TextDisplayMenuOpenCommand {
         val page = menu.page(snapshot.pageId)
         val openMessage = page?.openMessage.orEmpty()
         if (openMessage.isNotBlank()) {
-            target.sendMessage(openMessage.colored())
+            target.sendMessage(MenuTextProcessor.format(openMessage, MenuTextContext(target, menuId = menu.id, pageId = snapshot.pageId, use = MenuTextUse.PAGE_OPEN_MESSAGE, arguments = snapshot.arguments)))
         }
         if (sender == target) {
             sender.sendLang("command-open-success", menu.id, snapshot.pageId)

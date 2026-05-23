@@ -15,6 +15,9 @@ import cc.bkhk.display.menu.menu.config.MenuRegistry
 import cc.bkhk.display.menu.menu.model.MenuElementDefinition
 import cc.bkhk.display.menu.nms.NMSRuntimeSupport
 import cc.bkhk.display.menu.session.MenuSessionRegistry
+import cc.bkhk.display.menu.text.MenuTextContext
+import cc.bkhk.display.menu.text.MenuTextProcessor
+import cc.bkhk.display.menu.text.MenuTextUse
 
 import org.bukkit.Bukkit
 import org.bukkit.command.CommandSender
@@ -22,7 +25,6 @@ import taboolib.common.platform.command.player
 import taboolib.common.platform.command.subCommand
 import taboolib.common.platform.command.suggest
 import taboolib.common.platform.command.suggestUncheck
-import taboolib.module.chat.colored
 import taboolib.platform.util.sendLang
 import java.lang.management.ManagementFactory
 
@@ -154,8 +156,8 @@ object TextDisplayMenuDebugCommand {
 
     private fun sendMenuDebug(sender: CommandSender, menuId: String) {
         val menu = findMenu(sender, menuId) ?: return
-        sender.sendLang("command-debug-menu", menu.id, menu.sourceFileName, menu.pages.size, menu.defaultPage?.id ?: "-", menu.displayName.colored())
-        menu.pages.forEach { page -> sender.sendLang("command-debug-menu-page", page.id, page.elements.size, page.default, page.title.colored()) }
+        sender.sendLang("command-debug-menu", menu.id, menu.sourceFileName, menu.pages.size, menu.defaultPage?.id ?: "-", MenuTextProcessor.formatFor(sender, menu.displayName, MenuTextContext(menuId = menu.id, use = MenuTextUse.MENU_DISPLAY_NAME)))
+        menu.pages.forEach { page -> sender.sendLang("command-debug-menu-page", page.id, page.elements.size, page.default, MenuTextProcessor.formatFor(sender, page.title, MenuTextContext(menuId = menu.id, pageId = page.id, use = MenuTextUse.PAGE_TITLE))) }
     }
 
     private fun sendMenuPageDebug(sender: CommandSender, menuId: String, pageId: String) {
@@ -165,7 +167,7 @@ object TextDisplayMenuDebugCommand {
             sender.sendLang("command-debug-page-not-found", pageId, menu.id)
             return
         }
-        sender.sendLang("command-debug-page", menu.id, page.id, page.elements.size, page.default, page.title.colored())
+        sender.sendLang("command-debug-page", menu.id, page.id, page.elements.size, page.default, MenuTextProcessor.formatFor(sender, page.title, MenuTextContext(menuId = menu.id, pageId = page.id, use = MenuTextUse.PAGE_TITLE)))
         page.elements.forEach { element ->
             val actionCount = element.actions.allScripts().size
             val hitbox = element.hitbox?.let { "${it.width}x${it.height}" } ?: "-"

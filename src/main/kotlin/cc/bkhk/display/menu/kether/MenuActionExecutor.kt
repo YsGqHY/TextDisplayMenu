@@ -3,13 +3,19 @@ package cc.bkhk.display.menu.kether
 import cc.bkhk.display.menu.config.PluginConfig
 import cc.bkhk.display.menu.config.ShortcutAction
 import cc.bkhk.display.menu.interaction.MenuClickType
+import cc.bkhk.display.menu.menu.config.MenuRegistry
+import cc.bkhk.display.menu.render.MenuRenderService
 import cc.bkhk.display.menu.session.MenuPendingConfirmation
 import cc.bkhk.display.menu.session.MenuSessionRegistry
+import cc.bkhk.display.menu.text.MenuTextContext
+import cc.bkhk.display.menu.text.MenuTextProcessor
+import cc.bkhk.display.menu.text.MenuTextUse
+import org.bukkit.Bukkit
+import org.bukkit.Material
 import org.bukkit.entity.Player
 import taboolib.common.platform.function.adaptPlayer
 import taboolib.common.platform.function.warning
 import taboolib.common5.Coerce
-import taboolib.module.chat.colored
 import taboolib.module.kether.KetherShell
 import taboolib.module.kether.ScriptOptions
 import java.util.concurrent.CompletableFuture
@@ -60,7 +66,12 @@ object MenuActionExecutor {
 
     private fun executeDirectFuture(context: MenuActionContext, scripts: List<String>): CompletableFuture<Any?> {
         return scripts.fold(CompletableFuture.completedFuture<Any?>(null)) { future, script ->
-            future.thenCompose { executeOne(context, script) }
+            future.handle { _, throwable ->
+                if (throwable != null) {
+                    warning("菜单动作执行失败，继续执行后续动作: ${throwable.message ?: throwable.javaClass.simpleName}")
+                }
+                null
+            }.thenCompose { executeOne(context, script) }
         }
     }
 
@@ -73,25 +84,95 @@ object MenuActionExecutor {
             handleConfirm(context, trimmed)
             return CompletableFuture.completedFuture(null)
         }
-        return eval(context, trimmed)
+        executeNativeTdmenu(context, trimmed)?.let { result ->
+            return CompletableFuture.completedFuture(result)
+        }
+        return eval(context, trimmed).exceptionally { throwable ->
+            warning("菜单动作执行失败: script=$trimmed, reason=${throwable.message ?: throwable.javaClass.simpleName}")
+            null
+        }
+    }
+
+    private fun executeNativeTdmenu(context: MenuActionContext, script: String): Boolean? {
+        if (!script.startsWith("tdmenu ")) {
+            return null
+        }
+        val arguments = parseArguments(script.removePrefix("tdmenu "))
+        val action = arguments.getOrNull(0)?.lowercase() ?: return false
+        val value = arguments.getOrNull(1)
+        return when (action) {
+            "open" -> value?.let { menuId -> MenuRegistry.get(menuId)?.let { MenuRenderService.open(context.player, it) != null } } ?: false
+            "page" -> value?.let { pageId -> MenuRenderService.pageTo(context.player, pageId) } ?: false
+            "back" -> if (MenuRenderService.back(context.player)) true else value?.let { pageId -> MenuRenderService.pageTo(context.player, pageId, pushHistory = false) } ?: false
+            "close" -> {
+                val target = value?.takeIf { it.isNotBlank() }?.let { Bukkit.getPlayerExact(it) } ?: context.player
+                MenuRenderService.close(target)
+            }
+            "refresh" -> {
+                val target = value?.takeIf { it.isNotBlank() }?.let { Bukkit.getPlayerExact(it) } ?: context.player
+                MenuRenderService.refresh(target)
+            }
+            "tell-lang", "lang" -> value?.let { key ->
+                context.player.sendLang(key)
+                true
+            } ?: false
+            "hand-empty", "empty-hand" -> context.player.inventory.itemInMainHand.type.let { type -> type == Material.AIR || type.name.endsWith("_AIR") }
+            else -> null
+        }
     }
 
     private fun eval(context: MenuActionContext, script: String): CompletableFuture<Any?> {
         val previous = MenuKetherContext.enter(context)
-        return KetherShell.eval(
-            script,
-            ScriptOptions.new {
-                sender(adaptPlayer(context.player))
-                namespace(listOf("kether"))
-                sandbox(true)
-                vars(vars(context))
-            },
-        ).whenComplete { _, throwable ->
+        return runCatching {
+            KetherShell.eval(
+                normalizeScript(script),
+                ScriptOptions.new {
+                    sender(adaptPlayer(context.player))
+                    namespace(listOf("kether"))
+                    sandbox(false)
+                    detailError(true)
+                    vars(vars(context))
+                },
+            )
+        }.getOrElse { throwable ->
             MenuKetherContext.restore(context, previous)
-            if (throwable != null) {
-                warning("菜单动作执行失败: ${throwable.message ?: throwable.javaClass.simpleName}")
+            warning("菜单动作解析失败: script=$script, reason=${throwable.message ?: throwable.javaClass.simpleName}")
+            CompletableFuture.failedFuture(throwable)
+        }.whenComplete { _, _ ->
+            MenuKetherContext.restore(context, previous)
+        }
+    }
+
+    private fun normalizeScript(script: String): String {
+        return if (script.startsWith("def ")) script else "def main = { $script }"
+    }
+
+    private fun parseArguments(input: String): List<String> {
+        val result = ArrayList<String>()
+        val builder = StringBuilder()
+        var quoted = false
+        var escaped = false
+        input.forEach { char ->
+            when {
+                escaped -> {
+                    builder.append(char)
+                    escaped = false
+                }
+                char == '\\' -> escaped = true
+                char == '"' -> quoted = !quoted
+                char.isWhitespace() && !quoted -> {
+                    if (builder.isNotEmpty()) {
+                        result += builder.toString()
+                        builder.clear()
+                    }
+                }
+                else -> builder.append(char)
             }
         }
+        if (builder.isNotEmpty()) {
+            result += builder.toString()
+        }
+        return result
     }
 
     private fun vars(context: MenuActionContext): Map<String, Any?> {
@@ -156,7 +237,7 @@ object MenuActionExecutor {
             expiresAt = System.currentTimeMillis() + config.expireSeconds * 1000L,
         )
         MenuSessionRegistry.setPendingConfirmation(player, confirmation)
-        player.sendMessage(prompt.colored())
+        player.sendMessage(MenuTextProcessor.format(prompt, MenuTextContext(player, menuId = context.menuId, pageId = context.pageId, elementId = elementKey, use = MenuTextUse.CONFIRMATION_PROMPT)))
         return true
     }
 

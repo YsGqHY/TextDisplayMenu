@@ -1,10 +1,12 @@
 package cc.bkhk.display.menu.command.sub
 
 import cc.bkhk.display.menu.menu.config.MenuRegistry
+import cc.bkhk.display.menu.text.MenuTextContext
+import cc.bkhk.display.menu.text.MenuTextProcessor
+import cc.bkhk.display.menu.text.MenuTextUse
 import org.bukkit.command.CommandSender
 import taboolib.common.platform.command.subCommand
 import taboolib.common.platform.command.suggestUncheck
-import taboolib.module.chat.colored
 import taboolib.platform.util.sendLang
 
 object TextDisplayMenuListCommand {
@@ -32,7 +34,7 @@ object TextDisplayMenuListCommand {
         }
         menus.forEach { menu ->
             val defaultPage = menu.defaultPage?.id ?: "-"
-            sender.sendLang("command-list-entry", menu.id, menu.pages.size, defaultPage, menu.sourceFileName, menu.displayName.colored())
+            sender.sendLang("command-list-entry", menu.id, menu.pages.size, defaultPage, menu.sourceFileName, MenuTextProcessor.formatFor(sender, menu.displayName, MenuTextContext(menuId = menu.id, use = MenuTextUse.MENU_DISPLAY_NAME)))
         }
     }
 }

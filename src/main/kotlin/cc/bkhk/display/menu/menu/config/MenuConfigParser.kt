@@ -14,9 +14,20 @@ import cc.bkhk.display.menu.menu.model.MenuPosition
 import cc.bkhk.display.menu.menu.model.MenuScale
 import cc.bkhk.display.menu.menu.model.MenuTitleTimesDefinition
 import cc.bkhk.display.menu.menu.model.MenuViewDefinition
+import cc.bkhk.display.menu.menu.model.PreparedMenuActions
+import cc.bkhk.display.menu.menu.model.PreparedMenuElement
+import cc.bkhk.display.menu.menu.model.PreparedMenuHover
+import cc.bkhk.display.menu.nms.DisplayEntityType
+import cc.bkhk.display.menu.nms.DisplayItemTransform
+import org.bukkit.Bukkit
+import org.bukkit.Material
+import org.bukkit.block.data.BlockData
+import org.bukkit.boss.BarColor
+import org.bukkit.boss.BarStyle
 import taboolib.library.configuration.ConfigurationSection
 import taboolib.module.configuration.Configuration
 import java.io.File
+import java.util.Locale
 
 object MenuConfigParser {
 
@@ -87,28 +98,32 @@ object MenuConfigParser {
         return pageSection.getMapList("elements").mapIndexed { index, map ->
             val section = map.asSimpleSection()
             val id = section.getString("id", "element_$index") ?: "element_$index"
-            MenuElementDefinition(
+            val type = MenuElementType.of(section.getString("type", "text") ?: "text")
+            val hover = parseHover(section["hover"])
+            val actions = MenuElementActions(
+                interactClick = prepareScripts(section.getStringList("interact_click")),
+                leftClick = prepareScripts(section.getStringList("left_click")),
+                rightClick = prepareScripts(section.getStringList("right_click")),
+                shiftLeftClick = prepareScripts(section.getStringList("shift_left_click")),
+                shiftRightClick = prepareScripts(section.getStringList("shift_right_click")),
+            )
+            val element = MenuElementDefinition(
                 id = id,
-                type = MenuElementType.of(section.getString("type", "text") ?: "text"),
+                type = type,
                 position = parsePosition(section["position"]),
                 hitbox = parseHitbox(section["hitbox"]),
                 text = section.getString("text", "") ?: "",
                 focusedText = section.getString("focused_text", "") ?: "",
                 disabledText = section.getString("disabled_text", "") ?: "",
-                hover = parseHover(section["hover"]),
+                hover = hover,
                 material = section.getString("material", "") ?: "",
                 transform = section.getString("transform", "") ?: "",
                 block = section.getString("block", "") ?: "",
                 interactive = section.getOptionalBoolean("interactive"),
                 scale = parseScale(section["scale"]),
-                actions = MenuElementActions(
-                    interactClick = section.getStringList("interact_click"),
-                    leftClick = section.getStringList("left_click"),
-                    rightClick = section.getStringList("right_click"),
-                    shiftLeftClick = section.getStringList("shift_left_click"),
-                    shiftRightClick = section.getStringList("shift_right_click"),
-                ),
+                actions = actions,
             )
+            element.copy(prepared = prepareElement(element))
         }
     }
 
@@ -181,6 +196,78 @@ object MenuConfigParser {
             width = section.getDouble("width", 0.0),
             height = section.getDouble("height", 0.0),
         )
+    }
+
+    private fun prepareElement(element: MenuElementDefinition): PreparedMenuElement {
+        return PreparedMenuElement(
+            displayType = displayType(element.type),
+            material = parseMaterial(element.material),
+            itemTransform = parseItemTransform(element.transform),
+            blockData = parseBlockData(element.block),
+            hover = prepareHover(element.hover),
+            actions = PreparedMenuActions(
+                interactClick = element.actions.interactClick,
+                leftClick = element.actions.leftClick,
+                rightClick = element.actions.rightClick,
+                shiftLeftClick = element.actions.shiftLeftClick,
+                shiftRightClick = element.actions.shiftRightClick,
+            ),
+        )
+    }
+
+    private fun prepareHover(hover: MenuHoverDefinition): PreparedMenuHover {
+        val bossbar = hover.bossbar
+        return PreparedMenuHover(
+            bossbarColor = parseBossBarColor(bossbar?.color),
+            bossbarStyle = parseBossBarStyle(bossbar?.style),
+        )
+    }
+
+    private fun prepareScripts(scripts: List<String>): List<String> {
+        return scripts.map { it.trim() }.filter { it.isNotBlank() }
+    }
+
+    private fun displayType(type: MenuElementType): DisplayEntityType {
+        return when (type) {
+            MenuElementType.ITEM -> DisplayEntityType.ITEM
+            MenuElementType.BLOCK -> DisplayEntityType.BLOCK
+            MenuElementType.TEXT,
+            MenuElementType.BUTTON -> DisplayEntityType.TEXT
+        }
+    }
+
+    private fun parseMaterial(input: String): Material? {
+        val raw = input.trim()
+        if (raw.isBlank()) {
+            return null
+        }
+        return Material.matchMaterial(raw.uppercase(Locale.ROOT))
+    }
+
+    private fun parseItemTransform(input: String): DisplayItemTransform? {
+        val raw = input.trim()
+        if (raw.isBlank()) {
+            return null
+        }
+        return DisplayItemTransform.entries.firstOrNull { it.key.equals(raw, ignoreCase = true) }
+    }
+
+    private fun parseBlockData(input: String): BlockData? {
+        val raw = input.trim()
+        if (raw.isBlank()) {
+            return null
+        }
+        return runCatching { Bukkit.createBlockData(raw) }.getOrElse {
+            parseMaterial(raw)?.createBlockData()
+        }
+    }
+
+    private fun parseBossBarColor(input: String?): BarColor {
+        return runCatching { BarColor.valueOf(input?.uppercase(Locale.ROOT) ?: "WHITE") }.getOrDefault(BarColor.WHITE)
+    }
+
+    private fun parseBossBarStyle(input: String?): BarStyle {
+        return runCatching { BarStyle.valueOf(input?.uppercase(Locale.ROOT) ?: "SOLID") }.getOrDefault(BarStyle.SOLID)
     }
 
     private fun Map<*, *>.asSimpleSection(): SimpleSection {
