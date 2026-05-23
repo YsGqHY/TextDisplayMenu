@@ -3,9 +3,13 @@ package cc.bkhk.display.menu.interaction
 import cc.bkhk.display.menu.config.PluginConfig
 import cc.bkhk.display.menu.session.MenuSessionRegistry
 import org.bukkit.event.block.Action
+import org.bukkit.event.player.PlayerAnimationEvent
+import org.bukkit.event.player.PlayerAnimationType
 import org.bukkit.event.player.PlayerInteractEvent
 import org.bukkit.event.player.PlayerSwapHandItemsEvent
 import taboolib.common.platform.event.SubscribeEvent
+import taboolib.common.platform.function.submit
+import taboolib.module.nms.PacketReceiveEvent
 
 object MenuInteractionListener {
 
@@ -55,6 +59,33 @@ object MenuInteractionListener {
         }
         val handled = MenuInteractionService.handleClick(event.player, MenuClickType.INTERACT)
         if (handled) {
+            event.isCancelled = true
+        }
+    }
+
+    @SubscribeEvent
+    fun onPacket(event: PacketReceiveEvent) {
+        val snapshot = MenuSessionRegistry.current(event.player) ?: return
+        val entityId = MenuInteractionPacketMatcher.readInteractEntityId(event.packet) ?: return
+        if (snapshot.entityHandles.values.none { handle -> handle.entityId == entityId }) {
+            return
+        }
+        event.isCancelled = true
+        submit {
+            MenuInteractionService.handleEntityPacketClick(event.player, entityId)
+        }
+    }
+
+    @SubscribeEvent(ignoreCancelled = true)
+    fun onAnimation(event: PlayerAnimationEvent) {
+        if (event.animationType != PlayerAnimationType.ARM_SWING) {
+            return
+        }
+        if (MenuSessionRegistry.current(event.player) == null) {
+            return
+        }
+        val clickType = if (event.player.isSneaking) MenuClickType.SHIFT_LEFT else MenuClickType.LEFT
+        if (MenuInteractionService.handleClick(event.player, clickType)) {
             event.isCancelled = true
         }
     }

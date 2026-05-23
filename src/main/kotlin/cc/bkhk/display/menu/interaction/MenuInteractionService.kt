@@ -83,6 +83,18 @@ object MenuInteractionService {
         return false
     }
 
+    fun handleEntityPacketClick(player: Player, entityId: Int): Boolean {
+        if (!isClickEnabled(MenuClickType.INTERACT)) {
+            return false
+        }
+        val snapshot = MenuSessionRegistry.current(player) ?: return false
+        val elementKey = snapshot.entityHandles.entries.firstOrNull { (_, handle) -> handle.entityId == entityId }?.key ?: return false
+        val frame = MenuRenderService.currentFrame(player) ?: return false
+        val element = frame.element(elementKey)?.takeIf { it.interactive } ?: return false
+        MenuSessionRegistry.setFocusedElement(player, element.key)
+        return handleClick(player, MenuClickType.INTERACT)
+    }
+
     private fun tickFocus(playerId: java.util.UUID) {
         MenuKetherContext.cleanupOffline()
         val player = Bukkit.getPlayer(playerId) ?: return

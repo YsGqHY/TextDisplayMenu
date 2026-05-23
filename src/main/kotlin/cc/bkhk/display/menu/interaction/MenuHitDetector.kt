@@ -27,7 +27,7 @@ object MenuHitDetector {
         val hitPoint = eye.toVector().add(direction.multiply(t))
         val relative = hitPoint.subtract(frame.anchor.toVector())
         val x = relative.dot(frame.basis.right) * MenuRenderFrameBuilder.PIXELS_PER_BLOCK
-        val y = -relative.dot(frame.basis.up) * MenuRenderFrameBuilder.PIXELS_PER_BLOCK
+        val y = relative.dot(frame.basis.up) * MenuRenderFrameBuilder.PIXELS_PER_BLOCK
         val candidates = frame.elements.asSequence()
             .filter { it.interactive }
             .filter { element ->
