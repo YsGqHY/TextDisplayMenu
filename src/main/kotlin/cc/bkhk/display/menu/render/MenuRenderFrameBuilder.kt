@@ -75,10 +75,11 @@ object MenuRenderFrameBuilder {
             element.focusedText.isNotBlank() -> element.focusedText
             else -> element.id
         }
-        val text = MenuTextProcessor.format(rawText, textContext(player, menuId, pageId, element.id, use))
+        val text = MenuTextProcessor.formatComponent(rawText, textContext(player, menuId, pageId, element.id, use))
         val defaults = snapshot.render.displayDefaults.text
         return TextDisplayOptions(
-            text = text,
+            text = text.displayText,
+            textIsJson = text.textIsJson,
             lineWidth = defaults.lineWidth,
             backgroundColor = defaults.backgroundColor,
             textOpacity = defaults.textOpacity,

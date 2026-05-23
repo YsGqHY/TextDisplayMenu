@@ -35,6 +35,12 @@ dependencies {
     compileOnly("org.joml:joml:1.10.5")
     // Minecraft 服务端运行时已提供 fastutil；这里只用于编译移除实体包的 IntList 构造回退。
     compileOnly("it.unimi.dsi:fastutil:8.5.12")
+    // Paper 等服务端运行时可提供 Adventure MiniMessage；这里只用于编译可选解析入口，不打包到插件。
+    compileOnly("net.kyori:adventure-api:4.17.0")
+    compileOnly("net.kyori:adventure-text-minimessage:4.17.0")
+    compileOnly("net.kyori:adventure-text-serializer-gson:4.17.0")
+    compileOnly("net.kyori:adventure-text-serializer-legacy:4.17.0")
+    compileOnly("net.kyori:adventure-text-serializer-plain:4.17.0")
 
     compileOnly("ink.ptms.core:v11904:11904:universal")
 
