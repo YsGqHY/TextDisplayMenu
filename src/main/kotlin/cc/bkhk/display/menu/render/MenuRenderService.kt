@@ -33,6 +33,7 @@ object MenuRenderService {
 
     fun shutdown() {
         closeAll()
+        MenuDisplayEntityTracker.destroyAllOnline("shutdown_fallback")
         started.set(false)
     }
 
@@ -40,7 +41,7 @@ object MenuRenderService {
         MenuSessionRegistry.all().forEach { snapshot ->
             val player = Bukkit.getPlayer(snapshot.playerId)
             if (player == null) {
-                MenuSessionRegistry.close(snapshot.playerId)
+                forgetDetachedSession(snapshot.playerId)
                 return@forEach
             }
             val session = MenuSessionRegistry.session(player) ?: return@forEach
@@ -151,6 +152,7 @@ object MenuRenderService {
         MenuKetherContext.clear(player)
         MenuRenderListener.clearViewThrottle(player.uniqueId)
         destroyHandles(player, snapshot.entityHandles.values, immediate = true, session = null)
+        MenuDisplayEntityTracker.destroyAll(player, "close_fallback")
         MenuSessionRegistry.close(player)
         logPacket("close player=${player.name} menu=${snapshot.menuId} page=${snapshot.pageId} handles=${snapshot.entityHandles.size}")
         return true
@@ -161,7 +163,7 @@ object MenuRenderService {
         if (player != null) {
             return close(player)
         }
-        return MenuSessionRegistry.close(playerId)
+        return forgetDetachedSession(playerId)
     }
 
     fun closeAll(): Int {
@@ -181,7 +183,7 @@ object MenuRenderService {
             close(player)
             return false
         }
-        clearTemporaryRuntime(player, session, snapshot, immediateDestroy = false)
+        clearTemporaryRuntime(player, session, snapshot, immediateDestroy = true)
         val refreshed = spawnFrame(player, session, menu, page)
         if (refreshed) {
             startSessionTasks(player, session)
@@ -198,7 +200,7 @@ object MenuRenderService {
                 return@forEach
             }
             val player = Bukkit.getPlayer(snapshot.playerId) ?: run {
-                MenuSessionRegistry.close(snapshot.playerId)
+                forgetDetachedSession(snapshot.playerId)
                 return@forEach
             }
             if (refresh(player)) {
@@ -212,7 +214,7 @@ object MenuRenderService {
         val session = MenuSessionRegistry.session(playerId) ?: return
         val snapshot = session.snapshot() ?: return
         val player = Bukkit.getPlayer(playerId) ?: run {
-            MenuSessionRegistry.close(playerId)
+            forgetDetachedSession(playerId)
             return
         }
         if (!player.isOnline) {
@@ -249,7 +251,7 @@ object MenuRenderService {
             close(player)
             return
         }
-        val frame = MenuRenderFrameBuilder.build(player, menu, page)
+        val frame = MenuRenderFrameBuilder.build(player, menu, page, previousAnchorState = session.renderAnchorState)
         if (frame.layoutSignature() != snapshot.renderSignature || snapshot.entityHandles.size != frame.elements.size) {
             refresh(player)
             return
@@ -275,6 +277,7 @@ object MenuRenderService {
         val handles = runNms("spawnFrame", player) {
             NMSDisplayPacket.instance.sendDisplayBatch(player, frame.elements.map { it.spawnOperation })
         } ?: return false
+        MenuDisplayEntityTracker.register(player, handles, "spawn_frame")
         if (handles.size != frame.elements.size) {
             destroyHandles(player, handles, immediate = true, session = null)
             return false
@@ -301,17 +304,13 @@ object MenuRenderService {
         }
         val delay = PluginConfig.snapshot().session.destroyDelayTicks.coerceAtLeast(0L)
         if (immediate || delay == 0L || session == null) {
-            runNms("destroyDisplays", player) {
-                NMSDisplayPacket.instance.destroyDisplays(player, handles)
-            }
+            MenuDisplayEntityTracker.destroy(player, handles, "destroy_displays")
             return
         }
         val captured = handles.toList()
         submit(delay = delay) {
             if (player.isOnline) {
-                runNms("destroyDisplaysDelayed", player) {
-                    NMSDisplayPacket.instance.destroyDisplays(player, captured)
-                }
+                MenuDisplayEntityTracker.destroy(player, captured, "destroy_displays_delayed")
             }
         }
     }
@@ -321,7 +320,13 @@ object MenuRenderService {
         MenuFeedbackService.clear(player)
         MenuKetherContext.clear(player)
         MenuRenderListener.clearViewThrottle(player.uniqueId)
+        MenuDisplayEntityTracker.destroyAll(player, "cleanup_failed_session")
         MenuSessionRegistry.close(player)
+    }
+
+    private fun forgetDetachedSession(playerId: UUID): Boolean {
+        MenuDisplayEntityTracker.forgetAll(playerId)
+        return MenuSessionRegistry.close(playerId)
     }
 
     private fun <T> runNms(operation: String, player: Player, block: () -> T): T? {

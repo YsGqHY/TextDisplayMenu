@@ -33,6 +33,8 @@ dependencies {
     compileOnly("com.mojang:brigadier:1.0.18")
     // Minecraft 1.19.4+ 服务端运行时已提供 JOML；这里只用于编译 Display Transformation，禁止打包或 relocate，避免与服务端 NMS 类型不一致。
     compileOnly("org.joml:joml:1.10.5")
+    // Minecraft 服务端运行时已提供 fastutil；这里只用于编译移除实体包的 IntList 构造回退。
+    compileOnly("it.unimi.dsi:fastutil:8.5.12")
 
     compileOnly("ink.ptms.core:v11904:11904:universal")
 

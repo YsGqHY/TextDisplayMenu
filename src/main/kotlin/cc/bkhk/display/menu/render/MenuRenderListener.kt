@@ -33,9 +33,7 @@ object MenuRenderListener {
     @SubscribeEvent
     fun onQuit(event: PlayerQuitEvent) {
         clearViewThrottle(event.player.uniqueId)
-        if (PluginConfig.snapshot().session.closeOnQuit) {
-            MenuRenderService.close(event.player)
-        }
+        MenuRenderService.close(event.player)
     }
 
     @SubscribeEvent

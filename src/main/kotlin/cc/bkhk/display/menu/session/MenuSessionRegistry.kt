@@ -5,6 +5,7 @@ import cc.bkhk.display.menu.menu.model.MenuDefinition
 import cc.bkhk.display.menu.menu.model.MenuPageDefinition
 import cc.bkhk.display.menu.nms.DisplayEntityHandle
 import cc.bkhk.display.menu.nms.DisplayEntityType
+import cc.bkhk.display.menu.render.MenuRenderAnchorState
 import cc.bkhk.display.menu.render.MenuRenderFrame
 import org.bukkit.boss.BossBar
 import org.bukkit.entity.Player
@@ -118,6 +119,8 @@ class MenuSession(val playerId: UUID) {
         private set
     var currentFrame: MenuRenderFrame? = null
         private set
+    var renderAnchorState: MenuRenderAnchorState? = null
+        private set
     var interactionTick: Long = 0L
         private set
 
@@ -163,10 +166,16 @@ class MenuSession(val playerId: UUID) {
         entityHandles = handles
         renderSignature = signature
         currentFrame = frame
+        renderAnchorState = frame?.anchorState
     }
 
     fun updateCurrentFrame(frame: MenuRenderFrame?) {
         currentFrame = frame
+        renderAnchorState = frame?.anchorState
+    }
+
+    fun updateRenderAnchorState(anchorState: MenuRenderAnchorState?) {
+        renderAnchorState = anchorState
     }
 
     fun updateFocusCandidate(candidateKey: String?, currentTick: Long) {
@@ -296,6 +305,7 @@ class MenuSession(val playerId: UUID) {
         entityHandles = emptyMap()
         renderSignature = emptyList()
         currentFrame = null
+        renderAnchorState = null
         clearFocusRuntime()
         hoverPopupHandle = null
         hoverPopupElementKey = null
@@ -376,6 +386,12 @@ object MenuSessionRegistry {
     fun updateCurrentFrame(player: Player, frame: MenuRenderFrame?): MenuSessionSnapshot? {
         val session = session(player) ?: return null
         session.updateCurrentFrame(frame)
+        return session.snapshot()
+    }
+
+    fun updateRenderAnchorState(player: Player, anchorState: MenuRenderAnchorState?): MenuSessionSnapshot? {
+        val session = session(player) ?: return null
+        session.updateRenderAnchorState(anchorState)
         return session.snapshot()
     }
 

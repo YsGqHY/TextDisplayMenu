@@ -1,6 +1,6 @@
 package cc.bkhk.display.menu.nms
 
-import com.mojang.math.Transformation
+import it.unimi.dsi.fastutil.ints.IntArrayList
 import org.bukkit.Location
 import org.bukkit.Material
 import org.bukkit.block.data.BlockData
@@ -105,24 +105,27 @@ class NMSDisplayPacketImpl : NMSDisplayPacket() {
     }
 
     override fun destroyDisplays(player: Player, handles: Collection<DisplayEntityHandle>) {
-        val ids = handles.mapNotNull { handle ->
-            if (removeCachedEntity(player, handle) != null) handle.entityId else null
-        }
+        val targets = cachedDestroyTargets(player, handles)
+        val ids = targets.map { it.entityId }
         if (ids.isNotEmpty()) {
             player.sendPacketBlocking(runtime.destroyPacket(ids))
+            targets.forEach { removeCachedEntity(player, it) }
         }
     }
 
     override fun destroyAllDisplays(player: Player) {
-        val removed = entityCache.remove(player.uniqueId)?.keys?.toList().orEmpty()
+        val map = entityCache[player.uniqueId] ?: return
+        val removed = map.keys.toList()
         if (removed.isNotEmpty()) {
             player.sendPacketBlocking(runtime.destroyPacket(removed))
+            entityCache.remove(player.uniqueId, map)
         }
     }
 
     override fun sendDisplayBatch(player: Player, operations: List<DisplayPacketOperation>): List<DisplayEntityHandle> {
         val packets = ArrayList<Any>()
         val created = ArrayList<DisplayEntityHandle>()
+        val destroyed = ArrayList<DisplayEntityHandle>()
         operations.forEach { operation ->
             when (operation) {
                 is DisplayPacketOperation.SpawnText -> {
@@ -159,12 +162,13 @@ class NMSDisplayPacketImpl : NMSDisplayPacket() {
                         true
                     })
                 }
-                is DisplayPacketOperation.Destroy -> packets.addAll(buildDestroyPacket(player, listOf(operation.handle)))
-                is DisplayPacketOperation.DestroyMany -> packets.addAll(buildDestroyPacket(player, operation.handles))
+                is DisplayPacketOperation.Destroy -> packets.addAll(buildDestroyPacket(player, listOf(operation.handle), destroyed))
+                is DisplayPacketOperation.DestroyMany -> packets.addAll(buildDestroyPacket(player, operation.handles, destroyed))
             }
         }
         if (packets.isNotEmpty()) {
             player.sendBundlePacketBlocking(packets)
+            destroyed.forEach { removeCachedEntity(player, it) }
         }
         return created
     }
@@ -176,7 +180,6 @@ class NMSDisplayPacketImpl : NMSDisplayPacket() {
         options: TextDisplayOptions,
     ): CreatedPackets {
         val entity = runtime.newTextDisplay(location)
-        runtime.applyLocation(entity, location)
         applyCommonTransform(entity, transform)
         applyTextOptions(entity, options)
         return cacheCreatedEntity(player, DisplayEntityType.TEXT, entity, runtime.textEntityType, location)
@@ -189,7 +192,6 @@ class NMSDisplayPacketImpl : NMSDisplayPacket() {
         options: ItemDisplayOptions,
     ): CreatedPackets {
         val entity = runtime.newItemDisplay(location)
-        runtime.applyLocation(entity, location)
         applyCommonTransform(entity, transform)
         applyItemOptions(entity, options)
         return cacheCreatedEntity(player, DisplayEntityType.ITEM, entity, runtime.itemEntityType, location)
@@ -202,7 +204,6 @@ class NMSDisplayPacketImpl : NMSDisplayPacket() {
         options: BlockDisplayOptions,
     ): CreatedPackets {
         val entity = runtime.newBlockDisplay(location)
-        runtime.applyLocation(entity, location)
         applyCommonTransform(entity, transform)
         applyBlockOptions(entity, options)
         return cacheCreatedEntity(player, DisplayEntityType.BLOCK, entity, runtime.blockEntityType, location)
@@ -261,11 +262,18 @@ class NMSDisplayPacketImpl : NMSDisplayPacket() {
         return if (metadata.isEmpty()) emptyList() else listOf(runtime.metadataPacket(handle.entityId, metadata))
     }
 
-    private fun buildDestroyPacket(player: Player, handles: Collection<DisplayEntityHandle>): List<Any> {
-        val ids = handles.mapNotNull { handle ->
-            if (removeCachedEntity(player, handle) != null) handle.entityId else null
+    private fun buildDestroyPacket(player: Player, handles: Collection<DisplayEntityHandle>, destroyed: MutableCollection<DisplayEntityHandle>): List<Any> {
+        val targets = cachedDestroyTargets(player, handles)
+        val ids = targets.map { it.entityId }
+        if (ids.isEmpty()) {
+            return emptyList()
         }
-        return if (ids.isEmpty()) emptyList() else listOf(runtime.destroyPacket(ids))
+        destroyed += targets
+        return listOf(runtime.destroyPacket(ids))
+    }
+
+    private fun cachedDestroyTargets(player: Player, handles: Collection<DisplayEntityHandle>): List<DisplayEntityHandle> {
+        return handles.filter { handle -> getCachedEntity(player, handle) != null }
     }
 
     private fun getCachedEntity(player: Player, handle: DisplayEntityHandle): CachedDisplayEntity? {
@@ -287,12 +295,7 @@ class NMSDisplayPacketImpl : NMSDisplayPacket() {
     }
 
     private fun applyCommonTransform(entity: Any, transform: DisplayTransform) {
-        val transformation = Transformation(
-            Vector3f(transform.translationX, transform.translationY, transform.translationZ),
-            Quaternionf(),
-            Vector3f(transform.scaleX, transform.scaleY, transform.scaleZ),
-            Quaternionf(),
-        )
+        val transformation = runtime.newTransformation(transform)
         runtime.applyCommonTransform(entity, transformation, transform)
     }
 
@@ -347,6 +350,7 @@ class NMSDisplayPacketImpl : NMSDisplayPacket() {
         private val itemDisplayContextClass: Class<*> by lazy { nmsClass("world.item.ItemDisplayContext") }
         private val vec3Class: Class<*> by lazy { firstNmsClass("world.phys.Vec3D", "world.phys.Vec3") }
         private val brightnessClass: Class<*> by lazy { nmsClass("util.Brightness") }
+        private val transformationClass: Class<*> by lazy { com.mojang.math.Transformation::class.java }
         private val spawnPacketClass: Class<*> by lazy { firstNmsClass("network.protocol.game.PacketPlayOutSpawnEntity", "network.protocol.game.ClientboundAddEntityPacket") }
         private val metadataPacketClass: Class<*> by lazy { firstNmsClass("network.protocol.game.PacketPlayOutEntityMetadata", "network.protocol.game.ClientboundSetEntityDataPacket") }
         private val teleportPacketClass: Class<*> by lazy { firstNmsClass("network.protocol.game.PacketPlayOutEntityTeleport", "network.protocol.game.ClientboundTeleportEntityPacket") }
@@ -409,7 +413,10 @@ class NMSDisplayPacketImpl : NMSDisplayPacket() {
         }
 
         fun destroyPacket(ids: Collection<Int>): Any {
-            return destroyPacketClass.asAnyClass().invokeConstructor(ids.toIntArray())
+            val idArray = ids.toIntArray()
+            return runCatching { destroyPacketClass.asAnyClass().invokeConstructor(idArray as Any) }.getOrElse {
+                destroyPacketClass.asAnyClass().invokeConstructor(IntArrayList.wrap(idArray))
+            }
         }
 
         fun applyLocation(entity: Any, location: Location) {
@@ -424,7 +431,16 @@ class NMSDisplayPacketImpl : NMSDisplayPacket() {
             ) || error("Cannot set Display location for ${entity::class.java.name}.")
         }
 
-        fun applyCommonTransform(entity: Any, transformation: Transformation, transform: DisplayTransform) {
+        fun newTransformation(transform: DisplayTransform): Any {
+            return transformationClass.asAnyClass().invokeConstructor(
+                Vector3f(transform.translationX, transform.translationY, transform.translationZ),
+                Quaternionf(),
+                Vector3f(transform.scaleX, transform.scaleY, transform.scaleZ),
+                Quaternionf(),
+            )
+        }
+
+        fun applyCommonTransform(entity: Any, transformation: Any, transform: DisplayTransform) {
             invoker.callVoid(entity, plan.transformation, transformation)
             invoker.callVoid(entity, plan.interpolationDuration, transform.interpolationDurationTicks)
             invoker.callVoid(entity, plan.interpolationDelay, transform.interpolationDelayTicks)
