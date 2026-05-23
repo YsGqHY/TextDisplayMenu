@@ -9,11 +9,25 @@ plugins {
 
 taboolib {
     env {
-        // 安装模块
-        install(Basic, Bukkit, BukkitHook, BukkitNMSUtil)
-        install(BukkitUI)           // UI界面
+        // 基础平台与 Bukkit 工具
+        install(Basic, Bukkit, BukkitHook, BukkitUtil)
+
+        // Display 实体发包与 NMS 工具
+        install(BukkitNMS, BukkitNMSUtil)
+
+        // Minecraft 功能模块
+        install(MinecraftChat)      // 富文本、颜色和交互文本
+        install(MinecraftEffect)    // 粒子与几何特效
+        install(I18n)               // 国际化语言文件
+
+        // 脚本与表达式引擎
+        install(Kether)             // 菜单交互动作用脚本
+        install(JavaScript)         // JavaScript 脚本环境
+        install(Jexl)               // JEXL 表达式环境
+
+        // 功能支持模块
+        install(BukkitUI)           // UI 界面工具
         install(Database)           // 数据库
-        install(Kether)             // 条件判断
         install(CommandHelper)      // 命令系统
     }
     version {
