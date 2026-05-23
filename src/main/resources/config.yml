@@ -1,0 +1,298 @@
+# TextDisplayMenu 全局配置
+# 本插件使用 TextDisplay、ItemDisplay、BlockDisplay 等 Display 发包实体构建抬头交互 UI。
+# i18n 语言模块会自动识别语言文件，本文件不配置 language。
+# 指令通过 @CommandHeader 等注解注册，指令名称、别名、权限等固定在代码中，不放入配置文件。
+
+# 玩家快捷打开菜单设置。
+# 参考 TrMenu settings.yml 的 Shortcuts 设计：事件名直接映射到动作，动作可为空、单条 Kether 或条件动作列表。
+# 空列表表示不处理该快捷入口，也不会取消原版事件。
+shortcut:
+  # 是否启用全局快捷打开入口。
+  enabled: true
+  # 快捷打开冷却，单位毫秒，防止玩家连续触发造成频繁发包。
+  cooldown_ms: 800
+  # 潜行组合键有效时间，单位毫秒。玩家刚按下潜行后，在该时间内触发 sneaking_* 快捷入口。
+  sneaking_valid_ms: 1500
+  # 默认快捷打开菜单 id。
+  default_menu: default
+  # 快捷入口动作映射。键名对应监听到的玩家行为，值为 Kether 动作、动作列表或条件动作。
+  actions:
+    # 副手键，通常是 F 键。空列表表示不处理且不取消原版事件。
+    offhand: []
+    # 潜行 + 副手键，默认打开 default 菜单。
+    sneaking_offhand:
+      - condition: 'perm "textdisplaymenu.shortcut"'
+        execute:
+          - 'tdmenu open "default"'
+        deny:
+          - 'tdmenu tell-lang "command-no-permission"'
+    # 右键玩家。Kether 动作中可通过后续实现提供的目标变量获取被点击玩家。
+    right_click_player: []
+    # 潜行 + 右键玩家。
+    sneaking_right_click_player: []
+    # 左键空气。
+    left_click_air: []
+    # 右键空气。
+    right_click_air: []
+    # 潜行 + 右键空气。
+    sneaking_right_click_air:
+      - condition: 'tdmenu hand-empty'
+        execute:
+          - 'tdmenu open "default"'
+        deny:
+          - 'tdmenu tell-lang "shortcut-blocked"'
+    # 丢弃键，默认关闭避免误触。
+    drop_item: []
+  # 快捷打开的全局限制条件。
+  conditions:
+    # 是否在触发快捷动作后取消原版事件。
+    cancel_event: true
+    # 玩家打开背包或其他界面时是否忽略快捷入口。
+    ignore_when_inventory_open: true
+    # 是否禁止旁观模式玩家快捷打开。
+    block_spectator: true
+    # 是否禁止乘坐实体时快捷打开。
+    block_inside_vehicle: false
+    # 是否要求主手为空。false 表示交给具体动作条件决定。
+    require_empty_hand: false
+    # 禁止快捷打开的世界名列表。
+    blocked_worlds: []
+
+# Display 发包渲染设置。
+# 这里作为全局默认兜底；独立菜单配置中的 view/render 和元素级配置优先级更高。
+render:
+  # 菜单锚点：player_eye 表示以玩家视角为基准放置在面前。
+  anchor: player_eye
+  # 菜单距离玩家眼睛的默认距离，单位为方块。
+  distance: 2.4
+  # 菜单相对视线方向的水平偏移，单位为方块。
+  horizontal_offset: 0.0
+  # 菜单相对玩家眼睛的垂直偏移，单位为方块。
+  vertical_offset: -0.15
+  # 是否跟随玩家视角持续移动，保证 Display 菜单始终贴合玩家当前抬头方向。
+  follow_view: true
+  # 是否跟随玩家移动，开启后玩家移动时菜单锚点同步位移。
+  follow_position: true
+  # 跟随视角的平滑插值 tick，数值越大越平滑但延迟越明显。
+  follow_smooth_ticks: 2
+  # 跟随玩家移动的平滑插值 tick，数值越大越平滑但延迟越明显。
+  follow_position_smooth_ticks: 2
+  # 玩家转动视角发包触发 Display 更新的节流时间，单位毫秒。只限制更新频率，不阻止玩家转头。
+  view_packet_throttle_ms: 50
+  # 视角和位置锁定只通过 menu/*.yml 中的 view.lock.view 与 view.lock.position 配置，不提供全局默认锁定。
+  # 渲染刷新间隔，单位 tick。1 表示每 tick 检查并发送必要更新。
+  update_interval_ticks: 1
+  # 玩家离菜单会话锚点超过该距离时自动关闭，单位为方块。
+  max_session_distance: 12.0
+  # Display 展示实体默认元数据。菜单元素可单独覆盖这些默认值。
+  display_defaults:
+    # 通用 Display 元数据，适用于 TextDisplay、ItemDisplay、BlockDisplay。
+    common:
+      # billboard 可选：fixed、vertical、horizontal、center。
+      billboard: center
+      # 亮度覆盖。-1 表示不覆盖，使用客户端环境亮度。
+      brightness: -1
+      # 视距倍率，影响客户端多远仍渲染该展示实体。
+      view_range: 1.0
+      # 阴影半径。
+      shadow_radius: 0.0
+      # 阴影强度。
+      shadow_strength: 0.0
+      # 插值延迟 tick。
+      interpolation_delay_ticks: 0
+      # 位置/旋转/缩放插值持续 tick。
+      interpolation_duration_ticks: 2
+      # X 轴缩放。
+      scale_x: 1.0
+      # Y 轴缩放。
+      scale_y: 1.0
+      # Z 轴缩放。
+      scale_z: 1.0
+    # TextDisplay 默认元数据。
+    text:
+      # 是否显示文字阴影。
+      shadowed: true
+      # 是否隔墙可见。
+      see_through: false
+      # 背景颜色，格式为 #AARRGGBB。
+      background_color: '#66000000'
+      # 文本透明度，范围 0-255。
+      text_opacity: 255
+      # 文本换行宽度，单位为客户端显示像素。
+      line_width: 220
+      # 文本对齐方式：left、center、right。
+      alignment: center
+    # ItemDisplay 默认元数据。
+    item:
+      # 展示方式可选：none、thirdperson_lefthand、thirdperson_righthand、firstperson_lefthand、firstperson_righthand、head、gui、ground、fixed。
+      transform: gui
+      # 默认物品材质。
+      material: PAPER
+      # 是否让物品元素参与交互命中。关闭后仅作为装饰。
+      interactive: true
+      # X 轴缩放。
+      scale_x: 0.55
+      # Y 轴缩放。
+      scale_y: 0.55
+      # Z 轴缩放。
+      scale_z: 0.55
+    # BlockDisplay 默认元数据。
+    block:
+      # 默认方块状态，支持 Bukkit Material 名称；后续可扩展为带属性的 block data。
+      block: STONE
+      # 是否让方块元素参与交互命中。关闭后仅作为装饰。
+      interactive: true
+      # X 轴缩放。
+      scale_x: 0.45
+      # Y 轴缩放。
+      scale_y: 0.45
+      # Z 轴缩放。
+      scale_z: 0.45
+
+# 玩家视线与点击交互设置。
+interaction:
+  # 交互检测间隔，单位 tick。
+  detection_interval_ticks: 1
+  # 玩家视线最大交互距离，单位为方块。
+  max_distance: 4.0
+  # 是否允许 ItemDisplay 元素作为可点击按钮。
+  item_display_clickable: true
+  # 是否允许 BlockDisplay 元素作为可点击按钮。
+  block_display_clickable: true
+  # 混合展示实体重叠时的命中优先级，越靠前越优先。
+  hit_priority:
+    - button
+    - item
+    - block
+    - text
+  # 视线射线步进精度，单位为方块，越小越精确但计算量越高。
+  ray_step: 0.05
+  # 指向同一元素多少 tick 后视为聚焦，可降低快速扫过误触。
+  focus_stay_ticks: 2
+  # 默认交互区域大小，菜单元素未单独配置 hitbox 时使用。
+  default_hitbox:
+    # TextDisplay 文本/按钮默认交互区域宽度。
+    text_width: 90
+    # TextDisplay 文本/按钮默认交互区域高度。
+    text_height: 24
+    # ItemDisplay 物品元素默认交互区域宽度。
+    item_width: 32
+    # ItemDisplay 物品元素默认交互区域高度。
+    item_height: 32
+    # BlockDisplay 方块元素默认交互区域宽度。
+    block_width: 36
+    # BlockDisplay 方块元素默认交互区域高度。
+    block_height: 36
+  # 点击冷却，单位毫秒，防止同一次点击被重复处理。
+  click_cooldown_ms: 150
+  # 玩家操作到菜单动作的默认映射。
+  click_mapping:
+    # 交互键对应主操作。默认可由右键空气、换手键或后续自定义输入映射触发。
+    interact_click: primary
+    # 左键对应主操作。
+    left_click: primary
+    # 右键对应次操作或详情。
+    right_click: secondary
+    # 潜行左键对应批量或快捷操作。
+    shift_left_click: quick
+    # 潜行右键对应返回、详情或取消。
+    shift_right_click: back
+  # 允许作为展示实体交互输入的玩家行为。
+  input:
+    # 是否允许交互键触发当前聚焦实体。
+    interact_click: true
+    # 是否允许左键触发当前聚焦实体。
+    left_click: true
+    # 是否允许右键触发当前聚焦实体。
+    right_click: true
+    # 是否允许潜行点击触发当前聚焦实体。
+    shift_click: true
+    # 交互键来源列表。event 可选：right_click_air、right_click_block、swap_hand。
+    interact_events:
+      - right_click_air
+      - right_click_block
+  # 聚焦反馈设置。
+  focus_feedback:
+    # 是否启用元素聚焦反馈。
+    enabled: true
+    # 聚焦变化时是否播放声音。
+    play_sound: true
+    # 聚焦声音，使用 Bukkit Sound 名称。
+    sound: UI_BUTTON_CLICK
+    # 聚焦声音音量。
+    volume: 0.35
+    # 聚焦声音音调。
+    pitch: 1.6
+    # 是否允许聚焦元素时弹出额外 Display 实体作为 hover 提示。
+    display_popup_enabled: true
+    # hover 提示实体默认存活 tick；持续瞄准时会刷新。
+    display_popup_lifetime_ticks: 8
+    # hover 提示相对被瞄准元素的位置。
+    display_popup_offset:
+      # 水平偏移，单位为菜单逻辑单位。
+      x: 0
+      # 垂直偏移，单位为菜单逻辑单位。
+      y: -32
+      # 层级偏移。
+      z: 0.04
+    # 是否允许聚焦元素时发送 actionbar 提示。
+    actionbar_enabled: true
+    # actionbar 刷新间隔，单位 tick。
+    actionbar_interval_ticks: 20
+    # 是否允许聚焦元素时发送 title/subtitle 提示。
+    title_enabled: true
+    # title/subtitle 最短重发间隔，单位 tick，避免频繁闪烁。
+    title_interval_ticks: 40
+    # 是否允许聚焦元素时显示 bossbar 提示。
+    bossbar_enabled: true
+    # bossbar 刷新间隔，单位 tick。
+    bossbar_interval_ticks: 20
+
+# 菜单会话生命周期设置。
+session:
+  # 无操作自动关闭时间，单位秒。
+  idle_timeout_seconds: 120
+  # 关闭后保留页面状态的防抖时间，单位秒。期间再次打开同一菜单且未指定页面时恢复关闭前页面、历史和参数；超过后自动清理缓存。
+  keep_state_seconds: 30
+  # 玩家退出服务器时是否销毁客户端 Display 实体。
+  close_on_quit: true
+  # 玩家切换世界时是否销毁客户端 Display 实体。
+  close_on_world_change: true
+  # 玩家传送时是否关闭菜单。
+  close_on_teleport: true
+  # 玩家死亡时是否关闭菜单。
+  close_on_death: true
+  # 玩家切换到旁观模式时是否关闭菜单。
+  close_on_spectator: true
+  # 销毁 Display 实体包的延迟，单位 tick。0 表示立即发送。
+  destroy_delay_ticks: 0
+  # 会话清理任务间隔，单位 tick。
+  cleanup_interval_ticks: 100
+
+# 高风险操作确认设置。
+confirmation:
+  # 是否默认对高风险动作启用二次确认。
+  default_required: true
+  # 确认等待时间，单位秒。
+  expire_seconds: 8
+  # 确认操作使用的点击动作。
+  accept_click: left_click
+  # 取消操作使用的点击动作。
+  cancel_click: right_click
+  # 确认提示语言 key。
+  prompt_message_key: confirmation-prompt
+  # 确认过期语言 key。
+  expired_message_key: confirmation-expired
+  # 取消确认语言 key。
+  cancelled_message_key: confirmation-cancelled
+
+# 调试设置。
+debug:
+  # 是否启用调试模式。
+  enabled: false
+  # 是否输出 Display 发包调试信息。
+  log_packets: false
+  # 是否输出交互命中调试信息。
+  log_interactions: false
+  # 调试日志使用的语言 key。
+  message_key: debug-line

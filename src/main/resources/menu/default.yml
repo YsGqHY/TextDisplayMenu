@@ -1,0 +1,206 @@
+# 默认抬头菜单示例
+# 文件名即菜单 id：menu/default.yml -> default。
+# 快捷打开入口在 config.yml 的 shortcut.actions 中统一配置。
+# 菜单可见文本和本菜单的固定反馈可直接写在菜单文件中；通用玩家/控制台消息仍通过 lang/*.yml 与 tdmenu tell-lang 发送。
+# 玩家点击后的动作直接填写 Kether 脚本；菜单页跳转、关闭、确认等能力统一通过 tdmenu 动作提供。
+
+display_name: '&b默认抬头菜单'
+description: '&7一个围绕 Display 发包实体渲染的示例菜单，支持文本、物品和方块展示。'
+
+# 只有需要覆盖全局 render 默认值时才写 view。
+view:
+  distance: 2.35
+  vertical_offset: -0.10
+  width: 320
+  height: 180
+  # 视角/位置锁定仅使用以下菜单级开关；默认不写表示不锁定。
+  # lock: { view: false, position: false }
+
+controls:
+  # 未显式配置时，shortcut 再次触发默认关闭当前菜单。
+  back_closes_when_no_history: true
+  # 匹配后执行 tdmenu close，关闭当前菜单。
+  close_clicks:
+    - shift_right_click
+  # 匹配后优先执行 tdmenu open "back_menu"；未配置 back_menu 时执行 tdmenu back 返回上一页。
+  back_clicks:
+    - right_click
+  # back_menu: other_menu
+
+pages:
+  - id: home
+    default: true
+    title: '&b&lTextDisplayMenu'
+    open_message: '&a已打开默认抬头菜单。&7看向按钮并点击即可交互。'
+    elements:
+      - id: background_panel
+        type: block
+        position: { x: 0, y: -4, z: -0.03 }
+        interactive: false
+        block: BLACK_STAINED_GLASS
+        scale: { x: 3.20, y: 0.08, z: 1.60 }
+
+      - id: title
+        type: text
+        position: { x: 0, y: -70, z: 0.00 }
+        text: '&b&lTextDisplayMenu'
+        scale: 1.20
+
+      - id: subtitle
+        type: text
+        position: { x: 0, y: -48, z: 0.00 }
+        text: '&7看向按钮后左键操作，右键查看详情，Shift+左键执行快捷操作。'
+        scale: 0.85
+
+      - id: profile_icon
+        type: item
+        position: { x: -95, y: -36, z: 0.04 }
+        hitbox: { width: 34, height: 34 }
+        material: PLAYER_HEAD
+        transform: gui
+        scale: { x: 0.58, y: 0.58, z: 0.58 }
+        focused_text: '&a个人信息&7：左键打开，右键查看说明。'
+        hover:
+          display_popup:
+            text: |-
+              &a个人信息
+              &7左键或交互键打开资料。
+              &8右键查看按钮说明。
+            offset: { x: 0, y: -38, z: 0.06 }
+          actionbar: '&a个人信息 &7| &f交互键/左键打开，右键查看说明'
+        interact_click:
+          - 'command "profile" as player'
+          - 'tell "&a正在为你打开个人信息。"'
+        left_click:
+          - 'command "profile" as player'
+          - 'tell "&a正在为你打开个人信息。"'
+        right_click:
+          - 'tell "&7个人信息按钮：左键执行 /profile。"'
+
+      - id: warps_icon
+        type: item
+        position: { x: 0, y: -36, z: 0.04 }
+        hitbox: { width: 34, height: 34 }
+        material: COMPASS
+        transform: gui
+        scale: { x: 0.58, y: 0.58, z: 0.58 }
+        focused_text: '&b传送菜单&7：左键打开传送列表。'
+        hover:
+          title: '&b传送菜单'
+          subtitle: '&7左键或交互键打开传送列表'
+          title_times: { fade_in: 5, stay: 20, fade_out: 5 }
+        interact_click:
+          - 'command "warp" as player'
+        left_click:
+          - 'command "warp" as player'
+        right_click:
+          - 'tell "&7传送菜单按钮：左键执行 /warp。"'
+
+      - id: settings_block
+        type: block
+        position: { x: 95, y: -36, z: 0.04 }
+        hitbox: { width: 38, height: 38 }
+        block: CRAFTING_TABLE
+        scale: { x: 0.45, y: 0.45, z: 0.45 }
+        focused_text: '&e设置&7：左键进入菜单设置页。'
+        hover:
+          bossbar:
+            title: '&e设置菜单：左键或交互键进入设置页'
+            color: YELLOW
+            style: SOLID
+            progress: 1.0
+        interact_click:
+          - 'tdmenu page "settings"'
+        left_click:
+          - 'tdmenu page "settings"'
+        right_click:
+          - 'tell "&7设置按钮：左键进入本菜单的设置页。"'
+
+      - id: profile
+        type: button
+        position: { x: -95, y: -12, z: 0.02 }
+        hitbox: { width: 86, height: 26 }
+        text: '&f[ &a个人信息 &f]'
+        focused_text: '&f[ &a&l个人信息 &f] &7左键打开'
+        disabled_text: '&8[ 个人信息 ] &c无权限'
+        left_click:
+          - 'command "profile" as player'
+          - 'tell "&a正在为你打开个人信息。"'
+        right_click:
+          - 'tell "&7个人信息按钮：左键执行 /profile。"'
+
+      - id: warps
+        type: button
+        position: { x: 0, y: -12, z: 0.02 }
+        hitbox: { width: 86, height: 26 }
+        text: '&f[ &b传送菜单 &f]'
+        focused_text: '&f[ &b&l传送菜单 &f] &7左键打开'
+        disabled_text: '&8[ 传送菜单 ] &c无权限'
+        left_click:
+          - 'command "warp" as player'
+        right_click:
+          - 'tell "&7传送菜单按钮：左键执行 /warp。"'
+
+      - id: settings
+        type: button
+        position: { x: 95, y: -12, z: 0.02 }
+        hitbox: { width: 86, height: 26 }
+        text: '&f[ &e设置 &f]'
+        focused_text: '&f[ &e&l设置 &f] &7左键进入'
+        disabled_text: '&8[ 设置 ] &c无权限'
+        left_click:
+          - 'tdmenu page "settings"'
+        right_click:
+          - 'tell "&7设置按钮：左键进入本菜单的设置页。"'
+
+      - id: reload
+        type: button
+        position: { x: -48, y: 42, z: 0.02 }
+        hitbox: { width: 86, height: 24 }
+        text: '&f[ &6重载配置 &f]'
+        focused_text: '&f[ &6&l重载配置 &f] &7Shift+左键确认'
+        disabled_text: '&8[ 重载配置 ] &c无权限'
+        hover:
+          display_popup:
+            text: |-
+              &6重载配置
+              &7这是高风险操作，需要 Shift+左键确认。
+          actionbar: '&6重载配置 &7| &fShift+左键触发二次确认'
+        shift_left_click:
+          - 'tdmenu confirm "&e确认重载配置？再次左键确认，右键取消。" then { command "tdm reload" as player } else { tdmenu tell-lang "confirmation-cancelled" }'
+
+      - id: close
+        type: button
+        position: { x: 48, y: 42, z: 0.02 }
+        hitbox: { width: 86, height: 24 }
+        text: '&f[ &c关闭 &f]'
+        focused_text: '&f[ &c&l关闭 &f] &7左键关闭'
+        left_click:
+          - 'tdmenu close'
+          - 'tell "&7已关闭默认抬头菜单。"'
+
+  - id: settings
+    title: '&e&l菜单设置'
+    elements:
+      - id: title
+        type: text
+        position: { x: 0, y: -68, z: 0.00 }
+        text: '&e&l菜单设置'
+        scale: 1.10
+
+      - id: language_tip
+        type: text
+        position: { x: 0, y: -28, z: 0.00 }
+        text: '&7菜单展示文本直接写在菜单文件中；玩家/控制台消息仍使用 lang 文件。'
+        scale: 0.82
+
+      - id: back
+        type: button
+        position: { x: 0, y: 42, z: 0.02 }
+        hitbox: { width: 96, height: 24 }
+        text: '&f[ &7返回 &f]'
+        focused_text: '&f[ &f&l返回 &f] &7左键返回，右键关闭'
+        left_click:
+          - 'tdmenu page "home"'
+        right_click:
+          - 'tdmenu close'
